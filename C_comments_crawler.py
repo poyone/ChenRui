@@ -1,14 +1,14 @@
-from dataclasses import dataclass
-from attr import dataclass
-import requests
-import re
-from B_config import selenium_config
-from Z_libs import DriverInitialize, SessionInteractor, get_target_date
-import hashlib
-import time
-import pandas as pd
 import csv
+import hashlib
 import os
+import time
+from dataclasses import dataclass
+
+from attr import dataclass
+
+from B_config import selenium_config
+from Z_libs import DriverInitialize, SessionInteractor, format_date
+
 
 @dataclass
 class Comment:
@@ -38,7 +38,7 @@ class Crawler:
 
         comment = Comment(
             data['member']['uname'],
-            get_target_date(data['reply_control']['time_desc'].split('天')[0]),
+            format_date(data['ctime']),
             data['like'],
             data['content']['message'],
         )
@@ -63,15 +63,15 @@ class Crawler:
         
     def crawl_inner_replies(self, root):
         pn = 1
-        # 不知道具体有多少页的评论，所以使用死循环一直爬
+        # exhaust replies
         while True:
 
             url = f'https://api.bilibili.com/x/v2/reply/reply?oid={self.oid}&type=1&root={root}&ps=20&pn={pn}&web_location=333.788'
             pn += 1
             response = self.session.get(url).json()
             
-            if response['data']:
-                for reply in response['data']:
+            if response['data']['replies']:
+                for reply in response['data']['replies']:
                     self.yield_comment(reply)
             else:
                 break
@@ -79,40 +79,44 @@ class Crawler:
             
     def crawl_main_replies(self):
         m_pn = 1
-        #  先置顶评论爬取
+        #  for topped replies
         top = True
 
-        # 不知道具体有多少页的评论，所以使用死循环一直爬
+        # exhaust replies
         while True:
             url = self.construct_url(m_pn=m_pn)
             response = self.session.get(url).json()
             
+            # top part
             if top:
                 top = False
                 
                 if response['data']['top_replies']:
                     # top layer
-                    top_reply = response['data']['top_replies'][0]
-                    self.yield_comment(top_reply)
+                    for top_reply in response['data']['top_replies']:
+                        self.yield_comment(top_reply)
 
-                    # inner layer
-                    if top_reply['replies']:
-                        rpid = top_reply['rpid']
-                        self.crawl_inner_replies(root=rpid)
+                        # inner layer
+                        if top_reply['replies']:
+                            for reply in top_reply['replies']:
+                                rpid = reply['rpid']
+                                self.crawl_inner_replies(root=rpid)
             
+            # normal part
             if response['data']['replies']:
-                for reply in response['data']['replies']:
-                    self.yield_comment(reply)    
+                for normal_reply in response['data']['replies']:
+                    self.yield_comment(reply)
+                    
+                    if normal_reply['replies']:
+                        for reply in normal_reply['replies']:
+                            rpid = reply['rpid']
+                            self.crawl_inner_replies(root=rpid)    
             else:
                 break
             
             m_pn = m_pn+1
             
-    def quit(self):
-        with open(self.file_path, mode='a', newline='') as file:
-            writer = csv.writer(file)
-            writer.writerow(["Username", "Date", "Likes", "Content"])
             
 if __name__ == '__main__':
-    crawler = Crawler(oid=534, file_name='test.csv')
+    crawler = Crawler(oid=961191813, file_name='test.csv')
     crawler.crawl_main_replies()

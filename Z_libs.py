@@ -2,7 +2,6 @@ import json
 import pprint
 import random
 import re
-import time
 from datetime import datetime, timedelta
 
 
@@ -19,7 +18,7 @@ class DriverInitialize:
     
     def __init__(self, profile_path, login_site) -> None:
         
-        driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()))
+        webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()))
 
         options = Options()
         options.add_experimental_option('useAutomationExtension', False)
@@ -53,8 +52,8 @@ def removeBlank(string: str):
     
     return(re.sub(re.compile(r'\s+',re.S),'',string))
 
-def get_target_date(days_ago: str):
-    target_date = datetime.now() - timedelta(days=int(days_ago))
-    formatted_date = target_date.strftime('%Y-%m-%d')
+def format_date(days_ago: str):
+
+    formatted_date = datetime.strftime(datetime.fromtimestamp(int(days_ago)), '%Y-%m-%d %H:%M:%S')
     
     return formatted_date
