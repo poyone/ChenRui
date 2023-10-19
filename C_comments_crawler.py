@@ -9,7 +9,8 @@ from attr import dataclass
 from B_config import selenium_config
 from Z_libs import DriverInitialize, SessionInteractor, format_date
 
-
+#xiaogong add comment count
+count = 0
 @dataclass
 class Comment:
     UserName : str
@@ -36,6 +37,9 @@ class Crawler:
         
     def yield_comment(self, data):
 
+        #xiaogong add comment count
+        global count
+        count =count+1
         comment = Comment(
             data['member']['uname'],
             format_date(data['ctime']),
@@ -60,15 +64,28 @@ class Crawler:
             url = f'https://api.bilibili.com/x/v2/reply/wbi/main?oid={self.oid}&&type=1&mode=3&pagination_str=%7B%22offset%22:%22%7B%5C%22type%5C%22:1,%5C%22direction%5C%22:1,%5C%22data%5C%22:%7B%5C%22pn%5C%22:{m_pn}%7D%7D%22%7D&plat=1&web_location=1315875&w_rid={w_rid}&wts={wts}'
 
             return url
-        
+    
+    #xiaogong add replies get,need to pass in the 'replies' parameter
+    def get_replies(self,normal_reply):
+        for reply in normal_reply:
+            self.yield_comment(reply)
+            
+            if reply['replies']:
+                
+                rpid = reply['rpid']
+                self.crawl_inner_replies(root=rpid)
+
     def crawl_inner_replies(self, root):
         pn = 1
         # exhaust replies
         while True:
 
-            url = f'https://api.bilibili.com/x/v2/reply/reply?oid={self.oid}&type=1&root={root}&ps=20&pn={pn}&web_location=333.788'
+            url = f'https://api.bilibili.com/x/v2/reply/reply?oid={self.oid}&type=1&root={root}&ps=10&pn={pn}&web_location=333.788'
             pn += 1
+            #xiaogong add 延时一段时间防止封IP爬取不到
+            time.sleep(0.3)
             response = self.session.get(url).json()
+            
             
             if response['data']['replies']:
                 for reply in response['data']['replies']:
@@ -85,6 +102,8 @@ class Crawler:
         # exhaust replies
         while True:
             url = self.construct_url(m_pn=m_pn)
+            #xiaogong add 延时一段时间防止封IP爬取不到
+            time.sleep(0.3)
             response = self.session.get(url).json()
             
             # top part
@@ -93,30 +112,23 @@ class Crawler:
                 
                 if response['data']['top_replies']:
                     # top layer
-                    for top_reply in response['data']['top_replies']:
-                        self.yield_comment(top_reply)
-
-                        # inner layer
-                        if top_reply['replies']:
-                            for reply in top_reply['replies']:
-                                rpid = reply['rpid']
-                                self.crawl_inner_replies(root=rpid)
+                    self.get_replies(response['data']['top_replies'])
             
             # normal part
             if response['data']['replies']:
-                for normal_reply in response['data']['replies']:
-                    self.yield_comment(reply)
+                self.get_replies(response['data']['replies'])
                     
-                    if normal_reply['replies']:
-                        for reply in normal_reply['replies']:
-                            rpid = reply['rpid']
-                            self.crawl_inner_replies(root=rpid)    
             else:
+                break
+            
+            #xiaogong add 获取到回复列表不足19跳出（有时候获取到的列表是19不满20）
+            if len(response['data']['replies'])<19:
                 break
             
             m_pn = m_pn+1
             
             
 if __name__ == '__main__':
-    crawler = Crawler(oid=961191813, file_name='test.csv')
+    crawler = Crawler(oid=703790671, file_name='test.csv')
     crawler.crawl_main_replies()
+    print('评论数：',count)
