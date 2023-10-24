@@ -18,15 +18,17 @@ class DriverInitialize:
     
     def __init__(self, profile_path, login_site) -> None:
         
-        webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()))
+        # webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()))
 
         options = Options()
+        options.add_argument('headless')
         options.add_experimental_option('useAutomationExtension', False)
         options.add_experimental_option("excludeSwitches", ['enable-automation'])
         options.add_argument(f'--user-data-dir={profile_path}')
         # options.binary_location = driver_path
         options.add_argument('--log-level=3')
 
+        
         self.driver = webdriver.Chrome(options=options)
         self.driver.get(login_site)
         self.driver.implicitly_wait(10)
@@ -44,6 +46,9 @@ class SessionInteractor:
         self.session = requests.Session()
         for cookie in driver.get_cookies():
             self.session.cookies.set(cookie['name'], cookie['value'])
+        #xiaogong add 添加user-agent的设置
+        self.user_agent = driver.execute_script("return navigator.userAgent;")
+        self.session.headers['User-Agent'] = self.user_agent
 
     def return_session(self):
         return self.session

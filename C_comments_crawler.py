@@ -10,7 +10,7 @@ from B_config import selenium_config
 from Z_libs import DriverInitialize, SessionInteractor, format_date
 
 #xiaogong add comment count
-count = 0
+# count = 0
 @dataclass
 class Comment:
     UserName : str
@@ -37,9 +37,9 @@ class Crawler:
         
     def yield_comment(self, data):
 
-        #xiaogong add comment count
-        global count
-        count =count+1
+        # #xiaogong add comment count
+        # global count
+        # count =count+1
         comment = Comment(
             data['member']['uname'],
             format_date(data['ctime']),
@@ -126,9 +126,14 @@ class Crawler:
                 break
             
             m_pn = m_pn+1
+    #xiaogong add 添加关闭2个对象的函数
+    def close(self):
+        self.session.close()
+        self.driver.close()
             
             
 if __name__ == '__main__':
-    crawler = Crawler(oid=703790671, file_name='test.csv')
+    
+    crawler = Crawler(oid=916337138, file_name='test.csv')
     crawler.crawl_main_replies()
-    print('评论数：',count)
+    # print('评论数：',count)
